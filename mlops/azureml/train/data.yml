@@ -1,6 +1,6 @@
 $schema: https://azuremlschemas.azureedge.net/latest/data.schema.json
 
 type: uri_file
-name: used-cars-data # Provide the name for the dataset, related to used cars
-description: ____________  # Provide the description for the dataset, related to used cars
+name: used-cars-data
+description: Used cars dataset for training regression models to predict prices
 path: ../../../data/used_cars.csv
