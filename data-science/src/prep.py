@@ -1,40 +1,51 @@
 # prep.py
+
 import argparse
 import os
 from pathlib import Path
 import pandas as pd
+import glob
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 import mlflow
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Prepare data")
-    parser.add_argument("--raw_data", type=str, help="Path to raw data")
+    parser.add_argument("--raw_data", type=str, help="Path to raw data (mounted folder)")
     parser.add_argument("--train_data", type=str, help="Output path for training data")
     parser.add_argument("--test_data", type=str, help="Output path for test data")
     parser.add_argument("--test_train_ratio", type=float, default=0.2, help="Test/train ratio")
     return parser.parse_args()
 
 def main(args):
-    # Use AzureML-injected env var if available
-    raw_data_path = os.environ.get("AZUREML_DATAREFERENCE_raw_data", args.raw_data)
-    df = pd.read_csv(raw_data_path)
+    # Locate the first CSV file in the mounted input directory
+    csv_files = glob.glob(os.path.join(args.raw_data, "*.csv"))
+    if not csv_files:
+        raise FileNotFoundError(f"No CSV file found in {args.raw_data}")
+    
+    print(f"Found raw CSV file: {csv_files[0]}")
+    df = pd.read_csv(csv_files[0])
 
-    # Label encoding for all object columns
+    # Label encoding for object columns
     for col in df.select_dtypes(include='object').columns:
         df[col] = LabelEncoder().fit_transform(df[col])
 
     train_df, test_df = train_test_split(df, test_size=args.test_train_ratio, random_state=42)
 
-    # Ensure output directories exist
+    # Create output directories if they don't exist
     Path(args.train_data).mkdir(parents=True, exist_ok=True)
     Path(args.test_data).mkdir(parents=True, exist_ok=True)
 
-    # Save data to output folders
-    train_df.to_csv(Path(args.train_data) / "train.csv", index=False)
-    test_df.to_csv(Path(args.test_data) / "test.csv", index=False)
+    # Save the processed datasets
+    train_path = Path(args.train_data) / "train.csv"
+    test_path = Path(args.test_data) / "test.csv"
+    train_df.to_csv(train_path, index=False)
+    test_df.to_csv(test_path, index=False)
 
-    # Log row counts
+    print(f"Saved train dataset to: {train_path}")
+    print(f"Saved test dataset to: {test_path}")
+
+    # Log metrics with MLflow
     mlflow.log_metric("train_rows", train_df.shape[0])
     mlflow.log_metric("test_rows", test_df.shape[0])
 
