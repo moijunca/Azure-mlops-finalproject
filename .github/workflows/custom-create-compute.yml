@@ -1,4 +1,4 @@
-name: create-compute
+name: custom-create-compute
 
 on: 
   workflow_call:
@@ -32,35 +32,47 @@ jobs:
   create-compute:
     runs-on: ubuntu-latest
     steps:
-      - name: 'Az CLI login'
+      - name: Azure CLI login
         uses: azure/login@v1
         with:
           creds: ${{ secrets.creds }}
 
-      - name: Install Azure ML extension
-        run: |
-          az extension add -n ml --only-show-errors --yes || az extension update -n ml
+      - name: Install ML extension
+        run: az extension add -n ml -y
 
-      - name: Create compute cluster (no custom tier)
-        if: ${{ inputs.cluster_tier == '' || inputs.cluster_tier == null }}
-        run: |
-          az ml compute create --name ${{ inputs.cluster_name }} \
-                               --type AmlCompute \
-                               --size ${{ inputs.size }} \
-                               --min-instances ${{ inputs.min_instances }} \
-                               --max-instances ${{ inputs.max_instances }} \
-                               --tier dedicated \
-                               --resource-group ${{ inputs.resource_group }} \
-                               --workspace-name ${{ inputs.workspace_name }}
+      - name: Update ML extension
+        run: az extension update -n ml
 
-      - name: Create compute cluster (custom tier)
-        if: ${{ inputs.cluster_tier != '' && inputs.cluster_tier != null }}
+      - name: Check and create compute cluster
         run: |
-          az ml compute create --name ${{ inputs.cluster_name }} \
-                               --type AmlCompute \
-                               --size ${{ inputs.size }} \
-                               --min-instances ${{ inputs.min_instances }} \
-                               --max-instances ${{ inputs.max_instances }} \
-                               --tier ${{ inputs.cluster_tier }} \
-                               --resource-group ${{ inputs.resource_group }} \
-                               --workspace-name ${{ inputs.workspace_name }}
+          set -e
+
+          echo "🔍 Checking if compute cluster '${{ inputs.cluster_name }}' exists..."
+
+          if az ml compute show \
+            --name "${{ inputs.cluster_name }}" \
+            --resource-group "${{ inputs.resource_group }}" \
+            --workspace-name "${{ inputs.workspace_name }}" > /dev/null 2>&1; then
+
+            echo "✅ Compute cluster '${{ inputs.cluster_name }}' already exists. Skipping creation."
+
+          else
+            echo "🚀 Creating compute cluster '${{ inputs.cluster_name }}'..."
+
+            # Fallback to 'dedicated' tier if not specified
+            TIER="${{ inputs.cluster_tier }}"
+            if [ -z "$TIER" ]; then
+              TIER="dedicated"
+            fi
+
+            az ml compute create --name "${{ inputs.cluster_name }}" \
+              --type AmlCompute \
+              --tier "$TIER" \
+              --size "${{ inputs.size }}" \
+              --min-instances "${{ inputs.min_instances }}" \
+              --max-instances "${{ inputs.max_instances }}" \
+              --resource-group "${{ inputs.resource_group }}" \
+              --workspace-name "${{ inputs.workspace_name }}"
+
+            echo "✅ Compute cluster '${{ inputs.cluster_name }}' created successfully."
+          fi
