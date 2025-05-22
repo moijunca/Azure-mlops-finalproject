@@ -24,6 +24,7 @@ settings:
 
 jobs:
   prep_data:
+    type: command
     name: prep_data
     display_name: prepare-data
     code: ../../../data-science/src
@@ -40,9 +41,9 @@ jobs:
       test_data: ${{parent.outputs.test_data}}
 
   sweep_step:
+    type: sweep
     name: sweep_model
     display_name: sweep-random-forest
-    type: sweep
     inputs:
       train_data: ${{parent.jobs.prep_data.outputs.train_data}}
       test_data: ${{parent.jobs.prep_data.outputs.test_data}}
@@ -50,7 +51,7 @@ jobs:
       model_output:
         type: mlflow_model
     sampling_algorithm: random
-    trial: ./train.yml
+    trial: ./train.yml  # references your valid train component
     search_space:
       n_estimators:
         type: choice
@@ -67,6 +68,7 @@ jobs:
       timeout: 7200
 
   register_model:
+    type: command
     name: register_model
     display_name: register-trained-model
     code: ../../../data-science/src
