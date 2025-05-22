@@ -1,5 +1,6 @@
 # Copyright (c) Microsoft Corporation. All rights reserved.
 # Licensed under the MIT License.
+
 """
 Prepares raw data and provides training and test datasets.
 """
@@ -14,46 +15,53 @@ import mlflow
 
 def parse_args():
     '''Parse input arguments'''
+    parser = argparse.ArgumentParser(description="prep")
+    parser.add_argument("--raw_data", type=str, help="Path to raw data")
+    parser.add_argument("--train_data", type=str, help="Path to train dataset")
+    parser.add_argument("--test_data", type=str, help="Path to test dataset")
+    parser.add_argument("--test_train_ratio", type=float, default=0.2, help="Test-train ratio")
+    return parser.parse_args()
 
-    parser = argparse.__________("prep")  # Create an ArgumentParser object
-    parser.add_argument("--raw_data", type=_____, help="Path to raw data")  # Specify the type for raw data (str)
-    parser.add_argument("--train_data", type=_____, help="Path to train dataset")  # Specify the type for train data (str)
-    parser.add_argument("--test_data", type=_____, help="Path to test dataset")  # Specify the type for test data (str)
-    parser.add_argument("--test_train_ratio", type=______, default=_____, help="Test-train ratio")  # Specify the type (float) and default value (0.2) for test-train ratio
-    args = parser.parse_args()
-
-    return args
-
-def main(args):  # Write the function name for the main data preparation logic
+def main(args):
     '''Read, preprocess, split, and save datasets'''
 
-    # Reading Data
+    # Read raw CSV
     df = pd.read_csv(args.raw_data)
 
-    # ------- WRITE YOUR CODE HERE -------
+    # Label encode all categorical columns
+    label_encoders = {}
+    for col in df.select_dtypes(include=['object']).columns:
+        le = LabelEncoder()
+        df[col] = le.fit_transform(df[col])
+        label_encoders[col] = le
 
-    # Step 1: Perform label encoding to convert categorical features into numerical values for model compatibility.  
-    # Step 2: Split the dataset into training and testing sets using train_test_split with specified test size and random state.  
-    # Step 3: Save the training and testing datasets as CSV files in separate directories for easier access and organization.  
-    # Step 4: Log the number of rows in the training and testing datasets as metrics for tracking and evaluation.  
+    # Train-test split
+    train_df, test_df = train_test_split(df, test_size=args.test_train_ratio, random_state=42)
 
+    # Create output dirs
+    os.makedirs(args.train_data, exist_ok=True)
+    os.makedirs(args.test_data, exist_ok=True)
+
+    # Write outputs
+    train_path = os.path.join(args.train_data, "train.csv")
+    test_path = os.path.join(args.test_data, "test.csv")
+    train_df.to_csv(train_path, index=False)
+    test_df.to_csv(test_path, index=False)
+
+    # Log some basic metrics
+    mlflow.log_metric("train_rows", len(train_df))
+    mlflow.log_metric("test_rows", len(test_df))
 
 if __name__ == "__main__":
     mlflow.start_run()
 
-    # Parse Arguments
-    args = _______()  # Call the function to parse arguments
+    args = parse_args()
 
-    lines = [
-        f"Raw data path: {args._______}",  # Print the raw_data path
-        f"Train dataset output path: {args._______}",  # Print the train_data path
-        f"Test dataset path: {args._______}",  # Print the test_data path
-        f"Test-train ratio: {args._______}",  # Print the test_train_ratio
-    ]
+    print(f"Raw data path: {args.raw_data}")
+    print(f"Train dataset output path: {args.train_data}")
+    print(f"Test dataset output path: {args.test_data}")
+    print(f"Test-train ratio: {args.test_train_ratio}")
 
-    for line in lines:
-        print(line)
-    
     main(args)
 
     mlflow.end_run()
