@@ -16,22 +16,25 @@ def parse_args():
     return parser.parse_args()
 
 def main(args):
-    df = pd.read_csv(args.raw_data)
+    # Use AzureML-injected env var if available
+    raw_data_path = os.environ.get("AZUREML_DATAREFERENCE_raw_data", args.raw_data)
+    df = pd.read_csv(raw_data_path)
 
-    # Label encoding
+    # Label encoding for all object columns
     for col in df.select_dtypes(include='object').columns:
         df[col] = LabelEncoder().fit_transform(df[col])
 
     train_df, test_df = train_test_split(df, test_size=args.test_train_ratio, random_state=42)
 
-    # Create directories if needed
+    # Ensure output directories exist
     Path(args.train_data).mkdir(parents=True, exist_ok=True)
     Path(args.test_data).mkdir(parents=True, exist_ok=True)
 
-    # Save to CSV inside the output folders
+    # Save data to output folders
     train_df.to_csv(Path(args.train_data) / "train.csv", index=False)
     test_df.to_csv(Path(args.test_data) / "test.csv", index=False)
 
+    # Log row counts
     mlflow.log_metric("train_rows", train_df.shape[0])
     mlflow.log_metric("test_rows", test_df.shape[0])
 
