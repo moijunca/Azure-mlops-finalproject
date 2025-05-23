@@ -19,12 +19,17 @@ def parse_args():
 
 def main(args):
     # Locate the first CSV file in the mounted input directory
+    if os.path.isdir(args.raw_data):
     csv_files = glob.glob(os.path.join(args.raw_data, "*.csv"))
     if not csv_files:
-        raise FileNotFoundError(f"No CSV file found in {args.raw_data}")
-    
-    print(f"Found raw CSV file: {csv_files[0]}")
-    df = pd.read_csv(csv_files[0])
+        raise FileNotFoundError(f"No CSV file found in directory {args.raw_data}")
+    csv_path = csv_files[0]
+else:
+    csv_path = args.raw_data  # assume it's a direct CSV file path
+
+print(f"Reading CSV file from: {csv_path}")
+df = pd.read_csv(csv_path)
+
 
     # Label encoding for object columns
     for col in df.select_dtypes(include='object').columns:
