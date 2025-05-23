@@ -29,8 +29,9 @@ def main(args):
     '''Read train and test datasets, train model, evaluate model, save trained model'''
 
     # Load datasets
-    train_df = pd.read_csv(Path(args.train_data) / "data.csv")
-    test_df = pd.read_csv(Path(args.test_data) / "data.csv")
+    train_df = pd.read_csv(Path(args.train_data) / "train.csv")
+    test_df = pd.read_csv(Path(args.test_data) / "test.csv")
+
 
     # Split into features and labels
     X_train = train_df.drop(columns=["price"])
